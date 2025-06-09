@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Live Blockchain RPC Speed Test</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #f3f4f6;
+      color: #111827;
+      margin: 0;
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    h1 {
+      font-size: 2rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+    }
+    h2 {
+      font-size: 1.25rem;
+      margin-top: 2rem;
+      color: #4f46e5;
+      border-bottom: 2px solid #4f46e5;
+      padding-bottom: 0.25rem;
+    }
+    .card {
+      background-color: white;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
+      border-radius: 1rem;
+      padding: 2rem;
+      width: 100%;
+      max-width: 800px;
+    }
+    .bar-container {
+      background: #e5e7eb;
+      border-radius: 6px;
+      overflow: hidden;
+      height: 12px;
+      width: 100%;
+    }
+    .bar {
+      height: 12px;
+      background: #4f46e5;
+      border-radius: 6px;
+      transition: width 0.3s ease;
+    }
+    .metric {
+      margin-top: 1rem;
+    }
+    .metric h3 {
+      margin-bottom: 0.25rem;
+      font-size: 1rem;
+    }
+    .input-group {
+      display: flex;
+      margin-top: 1rem;
+    }
+    .input-group input {
+      flex: 1;
+      padding: 0.5rem;
+      font-size: 1rem;
+      border-radius: 0.5rem 0 0 0.5rem;
+      border: 1px solid #ccc;
+    }
+    .input-group button {
+      padding: 0.5rem 1rem;
+      background-color: #4f46e5;
+      color: white;
+      border: none;
+      border-radius: 0 0.5rem 0.5rem 0;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .section {
+      margin-top: 2rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Live Blockchain RPC Speed Test</h1>
+    <div class="input-group">
+      <input type="text" id="manualRPC" placeholder="Enter custom RPC URL...">
+      <button onclick="addManualRPC()">Add</button>
+    </div>
+    <div class="section">
+      <h2>Monad</h2>
+      <div id="monad"></div>
+    </div>
+    <div class="section">
+      <h2>MegaETH</h2>
+      <div id="megaeth"></div>
+    </div>
+    <div class="section">
+      <h2>Somnia</h2>
+      <div id="somnia"></div>
+    </div>
+    <div class="section">
+      <h2>0g Testnet</h2>
+      <div id="zeroG"></div>
+    </div>
+    <div class="section">
+      <h2>Custom RPCs</h2>
+      <div id="custom"></div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/web3/dist/web3.min.js"></script>
+  <script>
+    const groups = {
+      monad: [
+        { name: "Monad (DRPC)", url: "https://monad-testnet.drpc.org" },
+        { name: "Monad (Hypersync)", url: "https://monad-testnet.rpc.hypersync.xyz" }
+      ],
+      megaeth: [
+        { name: "MegaETH (Carrot)", url: "https://carrot.megaeth.com/rpc" },
+        { name: "MegaETH (Thirdweb)", url: "https://6342.rpc.thirdweb.com" }
+      ],
+      somnia: [
+        { name: "Somnia (Ankr)", url: "https://rpc.ankr.com/somnia_testnet/" },
+        { name: "Somnia (DreamRPC)", url: "https://dream-rpc.somnia.network/" }
+      ],
+      zeroG: [
+        { name: "0G Testnet (EVM RPC)", url: "https://evmrpc-testnet.0g.ai" },
+        { name: "0G Testnet (Storage RPC)", url: "https://rpc-storage-testnet.0g.ai" }
+      ],
+      custom: []
+    };
+
+    function createOrUpdateMetric(groupId, name, latency) {
+      const container = document.getElementById(groupId);
+      const id = `${groupId}-${name.replace(/\s+/g, '-')}`;
+      let div = document.getElementById(id);
+      const width = Math.min(100, latency);
+      if (!div) {
+        div = document.createElement("div");
+        div.className = "metric";
+        div.id = id;
+        div.innerHTML = `
+          <h3>${name}</h3>
+          <div class="bar-container">
+            <div class="bar" style="width:${width}%"></div>
+          </div>
+          <small><span class="latency">${latency.toFixed(2)}</span> ms</small>
+        `;
+        container.appendChild(div);
+      } else {
+        div.querySelector(".bar").style.width = `${width}%`;
+        div.querySelector(".latency").textContent = latency.toFixed(2);
+      }
+    }
+
+    async function pingRPC(groupId, name, url) {
+      const web3 = new Web3(url);
+      const start = performance.now();
+      try {
+        await web3.eth.getBlockNumber();
+        const end = performance.now();
+        createOrUpdateMetric(groupId, name, end - start);
+      } catch (err) {
+        createOrUpdateMetric(groupId, name, 0);
+      }
+    }
+
+    function runAll() {
+      for (const groupId in groups) {
+        groups[groupId].forEach(entry => {
+          pingRPC(groupId, entry.name, entry.url);
+        });
+      }
+    }
+
+    function addManualRPC() {
+      const input = document.getElementById("manualRPC");
+      const url = input.value.trim();
+      if (!url) return;
+      const name = `Custom RPC ${groups.custom.length + 1}`;
+      groups.custom.push({ name, url });
+      pingRPC("custom", name, url);
+      input.value = "";
+    }
+
+    runAll();
+    setInterval(runAll, 5000);
+  </script>
+</body>
+</html>
