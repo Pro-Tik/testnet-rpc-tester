@@ -2,13 +2,16 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Live Blockchain RPC Speed Test</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Live Blockchain RPC Speed Test - Racing Game</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap"
+    rel="stylesheet"
+  />
   <style>
     body {
-      font-family: 'Inter', sans-serif;
+      font-family: "Inter", sans-serif;
       background-color: #f3f4f6;
       color: #111827;
       margin: 0;
@@ -16,178 +19,277 @@
       display: flex;
       flex-direction: column;
       align-items: center;
+      min-height: 100vh;
     }
     h1 {
       font-size: 2rem;
       font-weight: 600;
       margin-bottom: 1rem;
     }
-    h2 {
-      font-size: 1.25rem;
-      margin-top: 2rem;
-      color: #4f46e5;
-      border-bottom: 2px solid #4f46e5;
-      padding-bottom: 0.25rem;
-    }
-    .card {
-      background-color: white;
-      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
+    .race-container {
+      width: 100%;
+      max-width: 900px;
+      background: white;
       border-radius: 1rem;
-      padding: 2rem;
-      width: 100%;
-      max-width: 800px;
+      padding: 1.5rem 2rem;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
+      margin-top: 1rem;
     }
-    .bar-container {
-      background: #e5e7eb;
-      border-radius: 6px;
+    .track-wrapper {
+      margin: 15px 0;
+    }
+    .track-label {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #4f46e5;
+      margin-bottom: 5px;
+    }
+    .track {
+      position: relative;
+      height: 70px;
+      border: 2px solid #4f46e5;
+      border-radius: 12px;
+      background: #e0e7ff;
       overflow: hidden;
-      height: 12px;
+    }
+    .car {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 60px;
+      height: 40px;
+      transition: left 0.1s linear;
+    }
+    .car svg {
       width: 100%;
+      height: 100%;
+      fill: #4f46e5;
     }
-    .bar {
-      height: 12px;
-      background: #4f46e5;
-      border-radius: 6px;
-      transition: width 0.3s ease;
+    .countdown {
+      font-size: 2rem;
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 1rem;
+      color: #4f46e5;
+      height: 40px;
     }
-    .metric {
+    .winner {
       margin-top: 1rem;
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #10b981;
+      text-align: center;
     }
-    .metric h3 {
-      margin-bottom: 0.25rem;
+    .stats {
+      margin-top: 0.5rem;
       font-size: 1rem;
+      color: #374151;
+      text-align: center;
+      white-space: pre-wrap;
+      font-family: monospace;
     }
-    .input-group {
-      display: flex;
-      margin-top: 1rem;
-    }
-    .input-group input {
-      flex: 1;
-      padding: 0.5rem;
-      font-size: 1rem;
-      border-radius: 0.5rem 0 0 0.5rem;
-      border: 1px solid #ccc;
-    }
-    .input-group button {
-      padding: 0.5rem 1rem;
+    button {
+      margin-top: 15px;
       background-color: #4f46e5;
       color: white;
       border: none;
-      border-radius: 0 0.5rem 0.5rem 0;
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
       cursor: pointer;
       font-weight: 600;
+      transition: background-color 0.3s ease;
     }
-    .section {
-      margin-top: 2rem;
+    button:hover {
+      background-color: #4338ca;
     }
   </style>
 </head>
 <body>
-  <div class="card">
-    <h1>Live Blockchain RPC Speed Test</h1>
-    <div class="input-group">
-      <input type="text" id="manualRPC" placeholder="Enter custom RPC URL...">
-      <button onclick="addManualRPC()">Add</button>
-    </div>
-    <div class="section">
-      <h2>Monad</h2>
-      <div id="monad"></div>
-    </div>
-    <div class="section">
-      <h2>MegaETH</h2>
-      <div id="megaeth"></div>
-    </div>
-    <div class="section">
-      <h2>Somnia</h2>
-      <div id="somnia"></div>
-    </div>
-    <div class="section">
-      <h2>0g Testnet</h2>
-      <div id="zeroG"></div>
-    </div>
-    <div class="section">
-      <h2>Custom RPCs</h2>
-      <div id="custom"></div>
-    </div>
+  <h1>Live Blockchain RPC Speed Test - Racing Game</h1>
+  <div class="race-container">
+    <div class="countdown" id="countdown">Get ready...</div>
+    <div id="tracksContainer"></div>
+
+    <button id="startRaceBtn">Start Race</button>
+
+    <div class="winner" id="winner"></div>
+    <div class="stats" id="stats"></div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/web3/dist/web3.min.js"></script>
   <script>
+    const duration = 30000;
+    const startRaceBtn = document.getElementById("startRaceBtn");
+    const countdownDiv = document.getElementById("countdown");
+    const winnerDiv = document.getElementById("winner");
+    const statsDiv = document.getElementById("stats");
+    const tracksContainer = document.getElementById("tracksContainer");
+
     const groups = {
       monad: [
         { name: "Monad (DRPC)", url: "https://monad-testnet.drpc.org" },
-        { name: "Monad (Hypersync)", url: "https://monad-testnet.rpc.hypersync.xyz" }
+        { name: "Monad (Hypersync)", url: "https://monad-testnet.rpc.hypersync.xyz" },
       ],
       megaeth: [
         { name: "MegaETH (Carrot)", url: "https://carrot.megaeth.com/rpc" },
-        { name: "MegaETH (Thirdweb)", url: "https://6342.rpc.thirdweb.com" }
+        { name: "MegaETH (Thirdweb)", url: "https://6342.rpc.thirdweb.com" },
       ],
       somnia: [
         { name: "Somnia (Ankr)", url: "https://rpc.ankr.com/somnia_testnet/" },
-        { name: "Somnia (DreamRPC)", url: "https://dream-rpc.somnia.network/" }
+        { name: "Somnia (DreamRPC)", url: "https://dream-rpc.somnia.network/" },
       ],
-      zeroG: [
-        { name: "0G Testnet (EVM RPC)", url: "https://evmrpc-testnet.0g.ai" },
-        { name: "0G Testnet (Storage RPC)", url: "https://rpc-storage-testnet.0g.ai" }
+      zerog: [
+        { name: "0G (EVM)", url: "https://evmrpc-testnet.0g.ai" },
+        { name: "0G (Storage)", url: "https://rpc-storage-testnet.0g.ai" },
       ],
-      custom: []
     };
 
-    function createOrUpdateMetric(groupId, name, latency) {
-      const container = document.getElementById(groupId);
-      const id = `${groupId}-${name.replace(/\s+/g, '-')}`;
-      let div = document.getElementById(id);
-      const width = Math.min(100, latency);
-      if (!div) {
-        div = document.createElement("div");
-        div.className = "metric";
-        div.id = id;
-        div.innerHTML = `
-          <h3>${name}</h3>
-          <div class="bar-container">
-            <div class="bar" style="width:${width}%"></div>
-          </div>
-          <small><span class="latency">${latency.toFixed(2)}</span> ms</small>
-        `;
-        container.appendChild(div);
-      } else {
-        div.querySelector(".bar").style.width = `${width}%`;
-        div.querySelector(".latency").textContent = latency.toFixed(2);
+    const rpcsToTest = [];
+    const latencyResults = {};
+    const carElements = {};
+    const labelElements = {};
+
+    // Setup DOM
+    function setupTracks() {
+      for (const group in groups) {
+        for (const rpc of groups[group]) {
+          const id = `${group}-${rpc.name.replace(/[^a-z0-9]/gi, '')}`;
+          rpcsToTest.push({ id, group, name: rpc.name, url: rpc.url });
+
+          const wrapper = document.createElement("div");
+          wrapper.className = "track-wrapper";
+
+          const label = document.createElement("div");
+          label.className = "track-label";
+          label.id = `label-${id}`;
+          label.textContent = `${rpc.name} - Loading...`;
+
+          const track = document.createElement("div");
+          track.className = "track";
+
+          const car = document.createElement("div");
+          car.className = "car";
+          car.id = `car-${id}`;
+          car.innerHTML = `
+            <svg viewBox="0 0 64 32" xmlns="http://www.w3.org/2000/svg">
+              <rect x="0" y="10" width="64" height="12" rx="4" ry="4" />
+              <circle cx="14" cy="25" r="6" />
+              <circle cx="50" cy="25" r="6" />
+            </svg>
+          `;
+
+          track.appendChild(car);
+          wrapper.appendChild(label);
+          wrapper.appendChild(track);
+          tracksContainer.appendChild(wrapper);
+
+          carElements[id] = car;
+          labelElements[id] = label;
+        }
       }
     }
 
-    async function pingRPC(groupId, name, url) {
+    function getLatency(url) {
       const web3 = new Web3(url);
       const start = performance.now();
-      try {
-        await web3.eth.getBlockNumber();
-        const end = performance.now();
-        createOrUpdateMetric(groupId, name, end - start);
-      } catch (err) {
-        createOrUpdateMetric(groupId, name, 0);
+      return web3.eth.getBlockNumber()
+        .then(() => performance.now() - start)
+        .catch(() => 10000); // fallback latency on failure
+    }
+
+    async function pingAll() {
+      for (const rpc of rpcsToTest) {
+        const latency = await getLatency(rpc.url);
+        latencyResults[rpc.id] = latency;
+        labelElements[rpc.id].textContent = `${rpc.name} - ${latency.toFixed(2)} ms`;
       }
     }
 
-    function runAll() {
-      for (const groupId in groups) {
-        groups[groupId].forEach(entry => {
-          pingRPC(groupId, entry.name, entry.url);
-        });
+    function updateCarPosition(carEl, progressPercent) {
+      const trackWidth = carEl.parentElement.clientWidth - carEl.clientWidth;
+      carEl.style.left = `${(progressPercent / 100) * trackWidth}px`;
+    }
+
+    function showStats() {
+      let text = "Final Latencies (ms):\n";
+      for (const rpc of rpcsToTest) {
+        text += `${rpc.name}: ${latencyResults[rpc.id].toFixed(2)} ms\n`;
       }
+      statsDiv.textContent = text;
     }
 
-    function addManualRPC() {
-      const input = document.getElementById("manualRPC");
-      const url = input.value.trim();
-      if (!url) return;
-      const name = `Custom RPC ${groups.custom.length + 1}`;
-      groups.custom.push({ name, url });
-      pingRPC("custom", name, url);
-      input.value = "";
+    function announceWinner() {
+      let minLatency = Infinity;
+      let winnerRpc = null;
+      for (const rpc of rpcsToTest) {
+        if (latencyResults[rpc.id] < minLatency) {
+          minLatency = latencyResults[rpc.id];
+          winnerRpc = rpc;
+        }
+      }
+      winnerDiv.textContent = `🏆 Winner: ${winnerRpc.name} with latency ${minLatency.toFixed(2)} ms!`;
     }
 
-    runAll();
-    setInterval(runAll, 5000);
+    async function race() {
+      winnerDiv.textContent = "";
+      statsDiv.textContent = "";
+      countdownDiv.textContent = "3";
+      startRaceBtn.disabled = true;
+
+      for (let i = 3; i > 0; i--) {
+        countdownDiv.textContent = i;
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+      countdownDiv.textContent = "Go!";
+
+      const startTime = performance.now();
+
+      // Reset all car positions
+      Object.values(carElements).forEach((car) => updateCarPosition(car, 0));
+
+      return new Promise((resolve) => {
+        function step() {
+          const elapsed = performance.now() - startTime;
+          const progress = Math.min(elapsed / duration, 1);
+
+          const latencies = Object.values(latencyResults);
+          const minLatency = Math.min(...latencies);
+
+          for (const rpc of rpcsToTest) {
+            const latency = latencyResults[rpc.id];
+            const speedFactor = minLatency / latency;
+            const carProgress = Math.min(progress * speedFactor * 1.2 * 100, 100);
+            updateCarPosition(carElements[rpc.id], carProgress);
+          }
+
+          if (progress < 1) {
+            requestAnimationFrame(step);
+          } else {
+            countdownDiv.textContent = "";
+            announceWinner();
+            showStats();
+            startRaceBtn.disabled = false;
+            resolve();
+          }
+        }
+        step();
+      });
+    }
+
+    async function start() {
+      startRaceBtn.disabled = true;
+      countdownDiv.textContent = "Pinging RPCs...";
+      await pingAll();
+      countdownDiv.textContent = "Ready to race!";
+      startRaceBtn.disabled = false;
+    }
+
+    startRaceBtn.onclick = async () => {
+      await race();
+    };
+
+    setupTracks();
+    start();
   </script>
 </body>
 </html>
